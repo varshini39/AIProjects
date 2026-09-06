@@ -63,10 +63,8 @@ linkedin_automation/
 ├── requirements.txt
 ├── sample_request.json      # Sample payload for curl testing
 ├── runs.log.jsonl            # Created at runtime — append-only run log
-├── n8n/
-│   └── FinEdge_LinkedIn_Automation.json   # Exported n8n workflow
-└── docs/
-    └── reflection.md         # Design decisions, challenges, trade-offs
+└── n8n/
+    └── FinEdge_LinkedIn_Automation.json   # Exported n8n workflow
 ```
 
 ## 4. Environment setup
@@ -237,5 +235,3 @@ as trust in the pipeline grows.
 - [x] Exported n8n workflow JSON — `n8n/FinEdge_LinkedIn_Automation.json`
 - [ ] Screenshots of successful runs — capture from your running n8n
       instance and FastAPI docs (`/docs`) and add to `docs/screenshots/`
-- [x] Reflection on design decisions, challenges, and trade-offs —
-      `docs/reflection.md`

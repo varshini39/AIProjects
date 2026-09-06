@@ -199,8 +199,7 @@ class MockAgents:
 class AutoGenAgents:
     """Real AG2 / AutoGen-backed agents, used when USE_MOCK=false.
 
-    Mirrors the AssistantAgent + GroupChat + GroupChatManager pattern from
-    the course notebook (AutoGen2003.ipynb), but scoped down to a
+    Mirrors the AssistantAgent + GroupChat + GroupChatManager pattern, but scoped down to a
     lightweight sequential pipeline that is cheap and fast enough to sit
     behind a synchronous HTTP endpoint.
     """
