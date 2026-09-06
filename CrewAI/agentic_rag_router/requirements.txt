@@ -1,0 +1,7 @@
+crewai
+crewai-tools
+langchain-community
+tavily-python
+python-dotenv
+pandas
+jupyter

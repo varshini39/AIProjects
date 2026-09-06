@@ -1,0 +1,24 @@
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+
+# Runtime logs / generated outputs
+*.log
+*.log.jsonl
+chroma_db/

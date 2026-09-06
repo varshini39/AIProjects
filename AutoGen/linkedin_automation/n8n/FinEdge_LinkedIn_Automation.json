@@ -1,0 +1,268 @@
+{
+  "name": "FinEdge Mumbai - LinkedIn Content Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "a1a1a1a1-0001-4000-8000-000000000001",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1120, 300],
+      "notes": "Weekdays at 09:00 IST — matches the content team's posting cadence."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "b1", "name": "brand.name", "type": "string", "value": "FinEdge Mumbai" },
+            { "id": "b2", "name": "brand.industry", "type": "string", "value": "Fintech" },
+            { "id": "b3", "name": "brand.voice", "type": "string", "value": "authoritative, data-driven, approachable" },
+            { "id": "b4", "name": "brand.values", "type": "array", "value": "=[\"trust\",\"innovation\",\"transparency\"]" },
+            { "id": "b5", "name": "brand.banned_words", "type": "array", "value": "=[\"guaranteed returns\",\"risk-free\"]" },
+            { "id": "c1", "name": "context.topic", "type": "string", "value": "RBI's new digital lending guidelines" },
+            { "id": "c2", "name": "context.audience", "type": "string", "value": "fintech professionals and SME founders" },
+            { "id": "c3", "name": "context.goal", "type": "string", "value": "thought leadership" },
+            { "id": "c4", "name": "context.cta", "type": "string", "value": "Book a demo with our compliance team." },
+            { "id": "c5", "name": "context.max_length", "type": "number", "value": 900 },
+            { "id": "d1", "name": "dry_run", "type": "boolean", "value": true },
+            { "id": "d2", "name": "min_confidence", "type": "number", "value": 0.75 }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1a1a1a1-0002-4000-8000-000000000002",
+      "name": "Brand Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-880, 300],
+      "notes": "Static brand + context values (no JavaScript). Swap dry_run to false when going live."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/linkedin",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"brand\": { \"name\": $json.brand.name, \"industry\": $json.brand.industry, \"voice\": $json.brand.voice, \"values\": $json.brand.values, \"banned_words\": $json.brand.banned_words }, \"context\": { \"topic\": $json.context.topic, \"audience\": $json.context.audience, \"goal\": $json.context.goal, \"cta\": $json.context.cta, \"max_length\": $json.context.max_length }, \"dry_run\": $json.dry_run, \"min_confidence\": $json.min_confidence } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a1a1a1a1-0003-4000-8000-000000000003",
+      "name": "AutoGen Microservice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-640, 300],
+      "notes": "Calls the FastAPI /linkedin endpoint (main.py). Update URL for the deployed VM/host."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "f1", "name": "final_text", "type": "string", "value": "={{ $json.draft + \"\\n\\n\" + $json.hashtags.join(' ') }}" },
+            { "id": "f2", "name": "confidence_score", "type": "number", "value": "={{ $json.confidence_score }}" },
+            { "id": "f3", "name": "meets_threshold", "type": "boolean", "value": "={{ $json.meets_threshold }}" },
+            { "id": "f4", "name": "run_id", "type": "string", "value": "={{ $json.run_id }}" },
+            { "id": "f5", "name": "dry_run", "type": "boolean", "value": "={{ $('Brand Config').item.json.dry_run }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1a1a1a1-0004-4000-8000-000000000004",
+      "name": "Compose Final",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-400, 300],
+      "notes": "Assembles draft + hashtags into final_text using a Set node (no JavaScript required)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.meets_threshold }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1a1a1a1-0005-4000-8000-000000000005",
+      "name": "Approval Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-160, 300],
+      "notes": "Compares confidence_score against min_confidence threshold (computed upstream by the microservice)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond2",
+              "leftValue": "={{ $json.dry_run }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1a1a1a1-0006-4000-8000-000000000006",
+      "name": "Dry Run Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [100, 200],
+      "notes": "Only reached if confidence passed. True dry_run -> Slack review. False -> live LinkedIn post."
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#linkedin-drafts" },
+        "text": "=📝 *New LinkedIn draft ready for review* (run `{{ $json.run_id }}`, confidence `{{ $json.confidence_score }}`)\n\n{{ $json.final_text }}",
+        "otherOptions": {}
+      },
+      "id": "a1a1a1a1-0007-4000-8000-000000000007",
+      "name": "Slack - Dry Run Review",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [360, 120],
+      "notes": "Sends the draft to Slack via incoming webhook / OAuth for human review before any live post is made."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/ugcPosts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"author\": \"urn:li:organization:REPLACE_WITH_ORG_URN\", \"lifecycleState\": \"PUBLISHED\", \"specificContent\": { \"com.linkedin.ugc.ShareContent\": { \"shareCommentary\": { \"text\": $json.final_text }, \"shareMediaCategory\": \"NONE\" } }, \"visibility\": { \"com.linkedin.ugc.MemberNetworkVisibility\": \"PUBLIC\" } } }}",
+        "options": {}
+      },
+      "id": "a1a1a1a1-0008-4000-8000-000000000008",
+      "name": "LinkedIn - Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 280],
+      "notes": "Live publish path (dry_run=false). Requires LinkedIn OAuth2 credential + organization URN configured before use."
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#linkedin-drafts" },
+        "text": "=⚠️ *Draft held back — confidence below threshold* (run `{{ $json.run_id }}`, confidence `{{ $json.confidence_score }}`)\n\n{{ $json.final_text }}\n\nReviewer notes: {{ $('AutoGen Microservice').item.json.reviewer_notes }}",
+        "otherOptions": {}
+      },
+      "id": "a1a1a1a1-0009-4000-8000-000000000009",
+      "name": "Slack - Needs Manual Rework",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [100, 460],
+      "notes": "Confidence below min_confidence — routed for manual rework instead of auto-approval."
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "__rl": true, "mode": "id", "value": "REPLACE_WITH_GOOGLE_SHEET_ID" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Runs" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_id": "={{ $json.run_id }}",
+            "timestamp": "={{ $now.toISO() }}",
+            "topic": "={{ $('Brand Config').item.json.context.topic }}",
+            "confidence_score": "={{ $json.confidence_score }}",
+            "meets_threshold": "={{ $json.meets_threshold }}",
+            "dry_run": "={{ $json.dry_run }}",
+            "final_text": "={{ $json.final_text }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1a1a1a1-0010-4000-8000-000000000010",
+      "name": "Log Run (Google Sheets)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [620, 300],
+      "notes": "Appends run details for transparency/traceability and threshold tuning. Swap for a DB node if preferred."
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": { "__rl": true, "mode": "name", "value": "#linkedin-alerts" },
+        "text": "=🚨 *LinkedIn automation error* on `{{ $json.run_id || 'unknown run' }}`: {{ $json.error || $json.message }}",
+        "otherOptions": {}
+      },
+      "id": "a1a1a1a1-0011-4000-8000-000000000011",
+      "name": "Slack - Error Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [-640, 560],
+      "notes": "Connected via the Error Trigger / node error output so failures (e.g. microservice 500s) are never silent."
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Brand Config", "type": "main", "index": 0 }]]
+    },
+    "Brand Config": {
+      "main": [[{ "node": "AutoGen Microservice", "type": "main", "index": 0 }]]
+    },
+    "AutoGen Microservice": {
+      "main": [[{ "node": "Compose Final", "type": "main", "index": 0 }]]
+    },
+    "Compose Final": {
+      "main": [[{ "node": "Approval Gate", "type": "main", "index": 0 }]]
+    },
+    "Approval Gate": {
+      "main": [
+        [{ "node": "Dry Run Check", "type": "main", "index": 0 }],
+        [{ "node": "Slack - Needs Manual Rework", "type": "main", "index": 0 }]
+      ]
+    },
+    "Dry Run Check": {
+      "main": [
+        [{ "node": "Slack - Dry Run Review", "type": "main", "index": 0 }],
+        [{ "node": "LinkedIn - Publish", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack - Dry Run Review": {
+      "main": [[{ "node": "Log Run (Google Sheets)", "type": "main", "index": 0 }]]
+    },
+    "LinkedIn - Publish": {
+      "main": [[{ "node": "Log Run (Google Sheets)", "type": "main", "index": 0 }]]
+    },
+    "Slack - Needs Manual Rework": {
+      "main": [[{ "node": "Log Run (Google Sheets)", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "finedge-linkedin-automation-course-project"
+  },
+  "tags": ["course-end-project", "linkedin", "autogen", "fintech"]
+}

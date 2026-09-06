@@ -1,0 +1,8 @@
+pymupdf
+pytesseract
+pillow
+langchain-text-splitters
+chromadb
+sentence-transformers
+ollama
+anthropic

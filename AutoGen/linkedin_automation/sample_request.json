@@ -1,0 +1,18 @@
+{
+  "brand": {
+    "name": "FinEdge Mumbai",
+    "industry": "Fintech",
+    "voice": "authoritative, data-driven, approachable",
+    "values": ["trust", "innovation", "transparency"],
+    "banned_words": ["guaranteed returns", "risk-free"]
+  },
+  "context": {
+    "topic": "RBI's new digital lending guidelines",
+    "audience": "fintech professionals and SME founders",
+    "goal": "thought leadership",
+    "cta": "Book a demo with our compliance team.",
+    "max_length": 900
+  },
+  "dry_run": true,
+  "min_confidence": 0.75
+}
