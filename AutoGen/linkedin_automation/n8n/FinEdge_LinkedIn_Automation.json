@@ -49,7 +49,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://localhost:8000/linkedin",
+        "url": "http://127.0.0.1:8000/linkedin",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { \"brand\": { \"name\": $json.brand.name, \"industry\": $json.brand.industry, \"voice\": $json.brand.voice, \"values\": $json.brand.values, \"banned_words\": $json.brand.banned_words }, \"context\": { \"topic\": $json.context.topic, \"audience\": $json.context.audience, \"goal\": $json.context.goal, \"cta\": $json.context.cta, \"max_length\": $json.context.max_length }, \"dry_run\": $json.dry_run, \"min_confidence\": $json.min_confidence } }}",

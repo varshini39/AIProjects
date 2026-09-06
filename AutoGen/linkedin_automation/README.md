@@ -135,16 +135,68 @@ curl -s -X POST http://localhost:8000/linkedin \
 ```
 
 ### 5.2 n8n — Execute Node
-1. Import `n8n/FinEdge_LinkedIn_Automation.json` (Workflows → Import from File).
-2. Open **Brand Config**, click **Execute Node** — confirm it outputs the
-   brand/context object.
-3. Open **AutoGen Microservice**, click **Execute Node** — confirm it
-   calls `http://localhost:8000/linkedin` and returns the microservice's
-   JSON (edit the URL if the service is on a different host/port).
-4. Open **Compose Final**, **Execute Node** — confirm `final_text` combines
-   `draft` + `hashtags`.
-5. Open **Approval Gate**, **Execute Node** — toggle `min_confidence` in
-   Brand Config to see both branches fire.
+
+Before you start: n8n must be running (`n8n start`, section 4.1) and the
+FastAPI microservice must already be up on `http://localhost:8000`
+(section 4.2) — the third node below calls it directly.
+
+**Import the workflow**
+1. Open the n8n editor at `http://localhost:5678`.
+2. Top-right menu (**⋯**) → **Import from File** (or drag-and-drop the file
+   onto the canvas).
+3. Select `n8n/FinEdge_LinkedIn_Automation.json`. The full workflow appears
+   on the canvas: `Schedule Trigger → Brand Config → AutoGen Microservice →
+   Compose Final → Approval Gate → Dry Run Check → ...`.
+
+**Run each node in isolation** ("Execute Node" lets you test one step at a
+time without triggering the whole workflow — useful for catching config
+mistakes early):
+
+1. **Brand Config** (a `Set` node — holds the brand/context payload)
+   - Single-click the node to select it (don't double-click yet).
+   - Click the **Execute step** button that appears on the node itself
+     (▶ icon, bottom-center of the node), or double-click the node to open
+     its panel and click **Execute step** there.
+   - A green checkmark appears on the node when it succeeds. Click the
+     node again (or look at the **Output** panel on the right) to inspect
+     the JSON — confirm it contains your `brand` and `context` fields
+     (name, industry, voice, topic, audience, min_confidence, etc.).
+
+2. **AutoGen Microservice** (an `HTTP Request` node — calls the FastAPI
+   service)
+   - Double-click to open it first and check the **URL** field points to
+     `http://localhost:8000/linkedin` (edit it if your service runs on a
+     different host/port), and that **Method** is `POST` with the JSON
+     body mapped from the previous node's output.
+   - Click **Execute step** in the node panel (or the ▶ icon on the
+     canvas). This sends a real HTTP request — your FastAPI terminal
+     should log the incoming request.
+   - Check the **Output** panel: you should see `ideas`, `draft`,
+     `hashtags`, `confidence_score`, `meets_threshold`, `reviewer_notes`,
+     `agent_trace` — the same shape you saw from the curl test in 5.1.
+   - If it fails instead: see the troubleshooting table in section 6
+     (most likely cause is the microservice isn't running or the port is
+     wrong).
+
+3. **Compose Final** (a `Set` node — merges draft + hashtags into one
+   postable string)
+   - Double-click to open, click **Execute step**.
+   - In the **Output** panel, confirm a `final_text` field exists and
+     that it reads as `draft` followed by the hashtags, e.g. ends with
+     `#Fintech #LinkedInGrowth ...`.
+
+4. **Approval Gate** (an `If` node — routes on `confidence_score` vs.
+   `min_confidence`)
+   - Double-click to open, click **Execute step**.
+   - n8n highlights which output branch fired: the top/green connector is
+     the "pass" (auto-approve) path, the bottom is "fail" (needs rework).
+   - To see both branches: go back to **Brand Config**, edit
+     `min_confidence` to a value just above the microservice's returned
+     `confidence_score` (e.g. `0.95`), re-run steps 1–4, and confirm the
+     **fail** branch now highlights instead. Set it back afterward.
+
+If any node's Execute step fails, n8n shows a red X on the node and an
+error panel with the message — read that first before checking section 6.
 
 ### 5.3 Full workflow
 1. Configure credentials: Slack (incoming webhook or OAuth) and, when
@@ -165,6 +217,7 @@ curl -s -X POST http://localhost:8000/linkedin \
 | Symptom | Root cause | Fix |
 |---|---|---|
 | n8n `AutoGen Microservice` node times out | FastAPI server not running / wrong port | Confirm `uvicorn` is up on the URL configured in the HTTP Request node; increase `options.timeout` if agent calls are slow |
+| n8n `AutoGen Microservice` fails with `ECONNREFUSED ::1:8000` even though `curl http://localhost:8000/health` works | Node.js resolves `localhost` to the IPv6 loopback `::1` first, but `uvicorn` only binds IPv4 (`0.0.0.0`); `curl` on macOS tries IPv4 first so it doesn't hit this | Use `http://127.0.0.1:8000/linkedin` instead of `http://localhost:8000/linkedin` in the HTTP Request node's URL field — forces IPv4 and skips the broken IPv6 lookup |
 | `/linkedin` returns `422 Unprocessable Entity` | Request body missing required `context.topic` field | Fixed by validating the Pydantic schema in Brand Config before sending |
 | Reviewer confidence always `0.7` in AutoGen mode | LLM occasionally returns prose instead of the requested JSON | `ReviewerAgent` output is now defensively parsed (`json.loads` between first `{` and last `}`) with a safe fallback score + logged warning |
 | Slack node fails silently | Missing/expired webhook credential | Added a dedicated **Slack - Error Alert** node wired to the workflow's error output so failures are never silent |
